@@ -8,15 +8,12 @@ class VTUWriter:
     def __init__(self,fileName):
         self.fileName = fileName
         self.fileNames = []
-        self.doc = xml.dom.minidom.Document()
-        root_element = self.doc.createElementNS("VTK", "VTKFile")
-        root_element.setAttribute("type", "UnstructuredGrid")
-        root_element.setAttribute("version", "0.1")
-        root_element.setAttribute("byte_order", "LittleEndian")
-        unstructuredGrid = self.doc.createElementNS("VTK", "UnstructuredGrid")
-        root_element.appendChild(unstructuredGrid)
-        self.doc.appendChild(root_element)
 
+        # Document and root element
+        self.doc = xml.dom.minidom.Document()
+
+        # the data will go here
+        self.data = {}
 
 
     def arrayToString(self, a):
@@ -27,13 +24,14 @@ class VTUWriter:
         return str(a)
 
 
-    def createDataArrayElement(self,name,components=0,data=[],type="Float32"):
+    def createDataArrayElement(self,name,data=[],components=0,type="Float32",format="ascii"):
         dataArray = self.doc.createElementNS("VTK", "DataArray")
-        dataArray.setAttribute("Name", name)
+        if name != "":
+            dataArray.setAttribute("Name", name)
         if components > 0:
             dataArray.setAttribute("NumberOfComponents", str(components))
         dataArray.setAttribute("type", type)
-        dataArray.setAttribute("format", "ascii")
+        dataArray.setAttribute("format", format)
         print data
         string = ""
         for line in data:
@@ -44,14 +42,51 @@ class VTUWriter:
 
         return dataArray
 
-    def addPointData(self):
-        return 0
 
+    def addData(self,target, name= "",data=[],components=0,type="Float32",format="ascii"):
+        # sanity check for the sections
+        assert target in ["PointData", "CellData", "Points","Cells"]
 
-    def insertCellData(self):
-        return 0
+        if self.data.has_key(target):
+            self.data[target].append(self.createDataArrayElement(name,data,components,type,format))
+        else:
+            self.data[target] = [self.createDataArrayElement(name,data,components,type,format)]
+
+        # preparing the number of points/cells for the output
+        if target == "Points":
+            self.numberOfPoints = len(data)
+        if target == "Cells":
+            if name == "connectivity":
+                self.numberOfCells = len(data)
+
 
     def writeVTU(self):
+        root_element = self.doc.createElementNS("VTK", "VTKFile")
+        root_element.setAttribute("type", "UnstructuredGrid")
+        root_element.setAttribute("version", "0.1")
+        root_element.setAttribute("byte_order", "LittleEndian")
+        self.doc.appendChild(root_element)
+
+        # Unstructured grid element
+        unstructuredGrid = self.doc.createElementNS("VTK", "UnstructuredGrid")
+        root_element.appendChild(unstructuredGrid)
+
+        # we will have a single piece
+        piece = self.doc.createElementNS("VTK", "Piece")
+        piece.setAttribute("NumberOfPoints", str(self.numberOfPoints))
+        piece.setAttribute("NumberOfCells", str(self.numberOfCells))
+        unstructuredGrid.appendChild(piece)
+
+        for key in self.data.keys():
+            # create points data
+            element = self.doc.createElementNS("VTK", key)
+
+            arrays = self.data[key]
+            for dataArray in arrays:
+                element.appendChild(dataArray)
+            piece.appendChild(element)
+
+
         outFile = open(self.fileName, 'w')
         self.doc.writexml(outFile,  addindent="  ",newl='\n')
         outFile.close()
