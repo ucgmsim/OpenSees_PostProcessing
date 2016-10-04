@@ -32,7 +32,8 @@ class VTUWriter:
             dataArray.setAttribute("NumberOfComponents", str(components))
         dataArray.setAttribute("type", type)
         dataArray.setAttribute("format", format)
-        print data
+        print "Inserting into %s %i elements" %(name,len(data))
+        #print data
         string = ""
         for line in data:
             string += "{0}\n".format(self.arrayToString(line))

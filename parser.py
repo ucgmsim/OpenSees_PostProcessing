@@ -19,8 +19,8 @@ if len(sys.argv) < 3:
 input_file = sys.argv[1]
 f = open(input_file,'r+')
 input_lines = f.readlines()
-node_regex = re.compile("node\s+(\d+)\s+(\d+\.\d+)\s+(\d+\.\d+)\s*")
-vertex_regex = re.compile("element quad (\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*")
+node_regex = re.compile("\s*node\s+(\d+)\s+(\-{0,1}\d+\.\d+)\s+(\-{0,1}\d+\.\d+)\s*")
+vertex_regex = re.compile("\s*element quad (\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s*")
 nodes = {}
 connectivity = []
 
@@ -33,29 +33,30 @@ for line in input_lines:
         nodeX = result_node.group(2)
         nodeY = result_node.group(3)
         #print '%s : (%s,%s)' %(nodeId,nodeX,nodeY)
-        if not hasFoundConnectivity:
-            nodes[int(nodeId)] = (float(nodeX),float(nodeY),0.0)
-        continue
+        #if not hasFoundConnectivity:
+        nodes[int(nodeId)] = (float(nodeX),float(nodeY),0.0)
+        #continue
 
     result_vertex = vertex_regex.match(line)
     if result_vertex == None:
         continue
     else:
-        hasFoundConnectivity = True
+        #hasFoundConnectivity = True
         members = [int(result_vertex.group(2))-1,int(result_vertex.group(3))-1,int(result_vertex.group(4))-1,int(result_vertex.group(5))-1]
         #print members
         connectivity.append(members)
 
 nodes_sorted_by_value = OrderedDict(sorted(nodes.items(), key=lambda x: x[0]))
 
-writer = VTUWriter()
-
+writer = VTUWriter("parsed.vtu")
 fakeVel = [[random.random(),random.random(),1.0] for i in range(len(nodes.keys()))]
+writer.addData("Points",data=nodes_sorted_by_value.values(),components=3)
+writer.addData("Cells","connectivity",data=connectivity,type="Int32")
+writer.addData("Cells","offsets",data=[4*i for i in range(1,len(connectivity)+1)],type="Int32")
+writer.addData("Cells","types",data=[9 for i in range(1,len(connectivity)+1)],type="UInt8")
+writer.addData("PointData","velocity",fakeVel,components=3)
 
-writer.snapshot("test.vtu",nodes_sorted_by_value.keys(),connectivity,nodes_sorted_by_value.values(),[],[],[])
-
-
-# opening and parsing output file
+writer.writeVTU()
 
 
 
